@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "mirari"
+version = "0.0.1"
+description = "A fast and physically-based light curve simulator using ray marching"
+authors = ["Liam Robinson <robin502@purdue.edu>"]
+readme = "README.rst"
+packages = [{include = "mirari"}]
+include = [{path = "mirari", format = "sdist"}]
+documentation = "https://liamrobinson1.github.io/pyspaceawaredocs/mirage.html"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: MacOS, Windows, Linux",
+]
+
+[tool.poetry.dependencies]
+python = ">=3.9"
+taichi = ">=1.7.1"
+hypothesis = ">=6.24.0"
+pytest = ">=6.2.5"
+
+[project.urls]
+"Homepage" = "https://github.com/ljrobins/mirari"
+"Bug Tracker" = "https://github.com/ljrobins/mirari/issues"
+"Documentation" = "https://liamrobinson1.github.io/mirari-docs"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
