@@ -118,7 +118,7 @@ def sph_to_cart(
     rcos_theta = ti.cos(el)
     x = rcos_theta * ti.cos(az)
     y = rcos_theta * ti.sin(az)
-    z = np.sin(el)
+    z = ti.sin(el)
     return ti.Vector([x, y, z])
 
 @ti.func
@@ -177,3 +177,15 @@ def rv_to_dcm(rv: ti.math.vec3) -> ti.math.mat3:
         [n3*n1*(1-c) + n2*s, n3*n2*(1-c) - n1*s, c + n3**2*(1-c)]
         ])
 
+
+@ti.func
+def rdot(v1: ti.math.vec3, v2: ti.math.vec3) -> float:
+    dp = ti.math.dot(v1, v2)
+    if dp < 0:
+        dp = 0.0
+    return dp
+    
+
+@ti.func
+def reflect(from_dir: ti.math.vec3, n: ti.math.vec3) -> ti.math.vec3:
+    return -from_dir + 2 * ti.math.dot(from_dir, n) * n

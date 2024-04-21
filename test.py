@@ -11,36 +11,38 @@ import matplotlib.pyplot as plt
 
 def main():
     t_start = time.time()
-    camera_pos = 10*ti.Vector([1, 5, 5])
+    camera_pos = 10*ti.Vector([0, 1, 3])
     camera_dir = -camera_pos.normalized()
     camera_up = ti.Vector([0.0, 1.0, 0.0]).normalized()
     light_normal = ti.Vector([0.0, -1.0, 0.0]).normalized()
     last_t = 0
     i = 0
-    interval = 1
+    interval = 5
     totals = []
-    tracer = mi.RayMarchRenderer(fov=5.0, 
-                                 scene_sdf=mi.scene_devel, 
-                                 res=(720, 480), 
-                                 max_depth=4, 
+    tracer = mi.RayMarchRenderer(fov=2.0, 
+                                 scene_sdf=mi.scene_one, 
+                                 res=(740, 480), 
+                                 max_depth=8, 
                                  samples_per_pixel=1,
                                  show_gui=True)
 
+    rotm = mi.r3_py(0.01*ti.cos(25/50.0))
+    # camera_pos = rotm @ camera_pos
+    # camera_dir = rotm @ camera_dir
+    light_normal = rotm @ light_normal
+
     while tracer.gui.running:
-        rotm = mi.r2_py(0.01*ti.cos(i/50.0))
-        camera_pos = rotm @ camera_pos
-        camera_dir = rotm @ camera_dir
         tracer.render_image(camera_pos, camera_dir, camera_up, light_normal)
         if i % interval == 0:
             print(f"{interval / (time.time() - last_t):.2f} samples/s")
             last_t = time.time()
             
-            totals.append(tracer.sum())
+            totals.append(tracer.total_brightness())
             tracer.show()
         i += 1
-        tracer.reset_buffer()
-        if i == 1000:
-            break
+        # tracer.reset_buffer()
+        # if i == 1000:
+        #     break
     
     print(time.time()-t_start)
 
@@ -61,7 +63,7 @@ def main():
     plt.grid()
     plt.tight_layout()
     plt.show()
-    print(totals[-1])
+    # print(totals[-1])
 
 
 if __name__ == "__main__":

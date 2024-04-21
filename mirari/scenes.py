@@ -56,7 +56,7 @@ def scene_three(r):
 @ti.func
 def scene_devel(r):
     box1 = box(origin=ti.Vector([0.0, 0.0, 0.0]), 
-               scales=ti.Vector([1.0, 1.0, 1.0]), r=r)
+               scales=0.3*ti.Vector([1.0, 1.0, 1.0]), r=r)
     # box2 = box(origin=ti.Vector([-0.25, 0.0, 0.0]), 
     #            scales=ti.Vector([0.5, 0.01, 0.2]), r=r)
     # box3 = box(origin=ti.Vector([0.25, 0.0, 0.0]), 

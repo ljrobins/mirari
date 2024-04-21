@@ -3,7 +3,12 @@ from typing import Callable, Tuple
 import numpy as np
 import taichi as ti
 
-from .brdf import out_dir
+from .brdf import sample_ggx_micro_normal_world, ggx_reflectance, reflect
+from .math import rdot
+
+
+a2 = 0.01**2
+cs = 0.95
 
 
 @ti.data_oriented
@@ -18,6 +23,7 @@ class RayMarchRenderer:
         samples_per_pixel: int = 1,
         show_gui: bool = False,
         gui_fps_limit: int = 1_000,
+        max_march_steps: int = 100,
     ) -> None:
         self.scene_sdf = scene_sdf
 
@@ -27,33 +33,39 @@ class RayMarchRenderer:
         self.max_depth = max_depth
         self.aspect_ratio = self.res[0] / self.res[1]
         self.samples_per_pixel = samples_per_pixel
+        self.max_march_steps = max_march_steps
 
         self.color_buffer = ti.Vector.field(1, dtype=ti.f32, shape=self.res)
         if show_gui:
             self.gui = ti.GUI("Mirari Ray Marcher", res)
             self.gui.fps_limit = gui_fps_limit
+        
+        self._j = 0
 
     def show(self):
         if not hasattr(self, "gui"):
             raise ValueError(
                 "This RayMarchRenderer was initialized with show_gui=False, it has no gui to show"
             )
-        img = self.color_buffer.to_numpy() / self.samples_per_pixel
+        img = self.color_buffer.to_numpy() / self._j
         self.gui.set_image(img)
         self.gui.show()
 
     @ti.func
     def march(self, p: ti.math.vec3, d: ti.math.vec3) -> float:
         j = 0
-        dist = 0.0
-        while j < 100 and self.scene_sdf(p + dist * d) > 1e-6 and dist < self.inf:
-            dist += self.scene_sdf(p + dist * d)
+        dist_marched = 0.0
+        while j < self.max_march_steps and dist_marched < self.inf:
+            new_dist = self.scene_sdf(p + dist_marched * d)
+            dist_marched += new_dist
+            if new_dist < 1e-6:
+                break
             j += 1
-        return ti.min(self.inf, dist)
+        return ti.min(self.inf, dist_marched)
 
     @ti.func
     def sdf_normal(self, p):
-        d = 1e-4
+        d = 1e-3
         n = ti.Vector([0.0, 0.0, 0.0])
         sdf_center = self.scene_sdf(p)
         for i in ti.static(range(3)):
@@ -63,8 +75,13 @@ class RayMarchRenderer:
         return n.normalized()
 
     def sum(self):
-        img = self.color_buffer.to_numpy() / self.samples_per_pixel
-        return img.sum()
+        img = self.color_buffer.to_numpy()
+        if np.any(np.isnan(img)):
+            raise ValueError("A pixel in the image is nan, aborting!")
+        return img.sum() / self._j
+
+    def total_brightness(self):
+        return self.sum() * self.fov**2 / self.res[1] ** 2
 
     @ti.func
     def next_hit(self, pos, d):
@@ -84,8 +101,12 @@ class RayMarchRenderer:
             normal = self.sdf_normal(pos + d * closest)
         return closest, normal
 
-    @ti.kernel
     def reset_buffer(self):
+        self._reset_buffer()
+        self._j = 0
+
+    @ti.kernel
+    def _reset_buffer(self):
         for u, v in self.color_buffer:
             self.color_buffer[u, v] = 0.0
 
@@ -98,6 +119,8 @@ class RayMarchRenderer:
     ):
         for _ in range(self.samples_per_pixel):
             self.render(camera_pos, camera_dir, camera_up, light_normal)
+            self._j += 1
+
 
     @ti.kernel
     def render(self, 
@@ -111,6 +134,17 @@ class RayMarchRenderer:
         # camera_dcm = ti.Matrix([[camera_x[0], camera_x[1], camera_x[2]], 
         #                         [camera_up[0], camera_up[1], camera_up[2]],
         #                         [camera_dir[0], camera_dir[1], camera_dir[2]]])
+        # d = ti.Vector(
+        #     [
+        #         (
+        #             2 * self.fov * (u + ti.random()) / self.res[1]
+        #             - self.fov * self.aspect_ratio
+        #             - 1e-5
+        #         ),
+        #         2 * self.fov * (v + ti.random()) / self.res[1] - self.fov - 1e-5,
+        #         -1.0,
+        #     ]
+        # ).normalized()
         for u, v in self.color_buffer:
             d = camera_dir
             frac_x = (v+ti.random()) / self.res[1]
@@ -118,29 +152,32 @@ class RayMarchRenderer:
             pos = camera_pos \
                 + self.fov * (frac_x-0.5) * camera_up \
                 + self.aspect_ratio * self.fov * (frac_y-0.5) * camera_x
-            # d = ti.Vector(
-            #     [
-            #         (
-            #             2 * self.fov * (u + ti.random()) / self.res[1]
-            #             - self.fov * self.aspect_ratio
-            #             - 1e-5
-            #         ),
-            #         2 * self.fov * (v + ti.random()) / self.res[1] - self.fov - 1e-5,
-            #         -1.0,
-            #     ]
-            # ).normalized()
 
             depth = 0
-            hit_light = 0.0
+            power = 1.0
+            last_surface_normal = light_normal
 
             while depth < self.max_depth:
                 closest, normal = self.next_hit(pos, d)
                 depth += 1
                 if closest == self.inf:
-                    hit_light = ti.max(d.dot(-light_normal), 0)
+                    power *= rdot(last_surface_normal, -light_normal)
                     break
                 else:
+                    last_surface_normal = normal
                     hit_pos = pos + closest * d
-                    d = out_dir(d, normal)
+
+                    wo = -d
+
+                    wm = sample_ggx_micro_normal_world(normal, a2)
+                    wi = reflect(wo, wm)
+                    refl = ggx_reflectance(wi, wo, normal, wm, cs, a2)
+                    power *= refl
+
+                    d = wi
                     pos = hit_pos + 1e-5 * d
-            self.color_buffer[u, v] += hit_light
+
+
+                    
+            self.color_buffer[u, v] += power if not ti.math.isnan(power) else 0
+            
