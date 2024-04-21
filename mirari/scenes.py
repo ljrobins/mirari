@@ -4,7 +4,7 @@ import numpy as np
 from typing import Callable
 
 
-@ti.func
+@ti.pyfunc
 def make_nested(f):
     f = f * 40
     i = int(f)
@@ -19,20 +19,27 @@ def make_nested(f):
 
 @ti.data_oriented
 class Scene:
-    def __init__(self, sdf: Callable):
-        self._sdf = sdf
+    def __init__(self, objects: Callable):
+        self.objects = objects
+        self._n_objs = len(objects)
     
-    @ti.func
+    @ti.pyfunc
+    def _sdf(self, r):
+        return [obj.sdf(r) for obj in ti.static(self.objects)]
+    
+    @ti.pyfunc
     def sdf(self, r):
         dists = self._sdf(r)
         min_dist = np.inf
-        for i in ti.static([0,1]):
+        min_obj = self.objects[0]
+        for i in ti.static(range(self._n_objs)):
             if dists[i] < min_dist:
                 min_dist = dists[i]
-        return min_dist
+                min_obj = self.objects[i]
+        return [min_dist, min_obj]
 
 
-@ti.func
+@ti.pyfunc
 def scene_one(o):
     wall = ti.min(o[1] + 0.1, o[2] + 0.4)
     sphere = (o - ti.Vector([0.0, 0.35, 0.0])).norm() - 0.36
@@ -53,17 +60,23 @@ def scene_one(o):
     return wall, geometry
 
 
-@ti.func
-def scene_three(r):
-    # box1 = box(origin=ti.Vector([0.0, 0.0, 0.0]), 
-    #            scales=ti.Vector([0.2, 0.3, 0.3]), r=r)
-    # t1 = torus(origin=ti.Vector([0.4, 0.4, 0.5]), 
-    #             radii=ti.Vector([0.2, 0.1]), 
-    #             r=r,
-    #             rv=ti.Vector([0.1, 0.2, 0.3]))
+@ti.pyfunc
+def scene_three_objs():
+    box1 = Box(origin=ti.Vector([0.0, 0.0, 0.0]), 
+               radii=ti.Vector([0.2, 0.3, 0.3]),
+               rv=ti.Vector([0.1, 0.2, 0.3]))
+    t1 = Torus(origin=ti.Vector([0.4, 0.4, 0.5]), 
+                radii=ti.Vector([0.2, 0.1, 0.0]), 
+                rv=ti.Vector([0.1, 0.2, 0.3]),
+                material=Material(cs=1.0, a=0.2))
+    
     sph1 = Sphere(origin=ti.Vector([0.0, 0.6, 0.0]),
-                  radius=0.2, r=r)
-    return ti.min(sph1)
+                  radii=ti.Vector([0.2, 0.0, 0.0]), 
+                  material=Material(cs=1.0, a=0.2))
+    sph2 = Sphere(origin=ti.Vector([0.4, 0.1, 0.0]),
+                  radii=ti.Vector([0.4, 0.0, 0.0]), 
+                  material=Material(cs=1.0, a=0.001))
+    return (t1, sph1, sph2, box1)
 
 # @ti.data_oriented
 # class Scene:

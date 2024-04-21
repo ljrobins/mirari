@@ -53,26 +53,27 @@ class RayMarchRenderer:
         self.gui.show()
 
     @ti.func
-    def march(self, p: ti.math.vec3, d: ti.math.vec3) -> float:
+    def march(self, p: ti.math.vec3, d: ti.math.vec3) -> Tuple[float, ti.types.struct]:
         j = 0
         dist_marched = 0.0
+        closest_obj = self.scene.objects[0]
         while j < self.max_march_steps and dist_marched < self.inf:
-            new_dist = self.scene.sdf(p + dist_marched * d)
+            new_dist, closest_obj = self.scene.sdf(p + dist_marched * d)
             dist_marched += new_dist
             if new_dist < 1e-6:
                 break
             j += 1
-        return ti.min(self.inf, dist_marched)
+        return [ti.min(self.inf, dist_marched), closest_obj]
 
     @ti.func
     def sdf_normal(self, p):
         d = 1e-3
         n = ti.Vector([0.0, 0.0, 0.0])
-        sdf_center = self.scene.sdf(p)
+        sdf_center, _ = self.scene.sdf(p)
         for i in ti.static(range(3)):
             inc = p
             inc[i] += d
-            n[i] = (1 / d) * (self.scene.sdf(inc) - sdf_center)
+            n[i] = (1 / d) * (self.scene.sdf(inc)[0] - sdf_center)
         return n.normalized()
 
     def sum(self):
@@ -96,11 +97,11 @@ class RayMarchRenderer:
         :rtype: _type_
         """
         closest, normal = self.inf, ti.Vector.zero(ti.f32, 3)
-        ray_march_dist = self.march(pos, d)
+        ray_march_dist, closest_obj = self.march(pos, d)
         if ray_march_dist < self.inf and ray_march_dist < closest:
             closest = ray_march_dist
             normal = self.sdf_normal(pos + d * closest)
-        return closest, normal
+        return closest, normal, closest_obj
 
     def reset_buffer(self):
         self._reset_buffer()
@@ -159,7 +160,7 @@ class RayMarchRenderer:
             last_surface_normal = light_normal
 
             while depth < self.max_depth:
-                closest, normal = self.next_hit(pos, d)
+                closest, normal, closest_obj = self.next_hit(pos, d)
                 depth += 1
                 if closest == self.inf:
                     power *= rdot(last_surface_normal, -light_normal)
@@ -170,9 +171,9 @@ class RayMarchRenderer:
 
                     wo = -d
 
-                    wm = sample_ggx_micro_normal_world(normal, a2)
+                    wm = sample_ggx_micro_normal_world(normal, closest_obj.material.a**2)
                     wi = reflect(wo, wm)
-                    refl = ggx_reflectance(wi, wo, normal, wm, cs, a2)
+                    refl = ggx_reflectance(wi, wo, normal, wm, closest_obj.material.cs, closest_obj.material.a**2)
                     power *= refl
 
                     d = wi

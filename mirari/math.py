@@ -99,17 +99,17 @@ def random_hemisphere_direction(n) -> ti.math.vec3:
     return ax * (ti.cos(phi) * u + ti.sin(phi) * v) + ay * n
 
 
-@ti.func
+@ti.pyfunc
 def lerp(v1: float, v2: float, t: float) -> ti.math.vec3:
     return (t * v2 + (1 - t) * v1).normalized()
 
-@ti.func
+@ti.pyfunc
 def slerp(n1: ti.math.vec3, n2: ti.math.vec3, t: float) -> ti.math.vec3:
     om = ti.acos(ti.math.dot(n1, n2))
     return (ti.sin((1-t)*om)*n1 + ti.sin(t*om)*n2)/ti.sin(om)
 
-@ti.func
-def rv_to_dcm(rv: ti.math.vec3) -> ti.math.mat3:
+@ti.pyfunc
+def rv_to_dcm(rv) -> ti.math.mat3:
     theta = rv.norm()
     c = ti.cos(theta)
     s = ti.sin(theta)

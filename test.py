@@ -17,21 +17,21 @@ def main():
     light_normal = ti.Vector([0.0, -1.0, 0.0]).normalized()
     last_t = 0
     i = 0
-    interval = 5
+    interval = 10
     totals = []
     tracer = mi.RayMarchRenderer(fov=2.0, 
-                                 scene=mi.Scene(sdf=mi.scene_one), 
-                                 res=(740, 480), 
-                                 max_depth=8, 
+                                 scene=mi.Scene(objects=mi.scene_three_objs()), 
+                                 res=(400, 400), 
+                                 max_depth=4, 
                                  samples_per_pixel=1,
                                  show_gui=True)
 
-    rotm = mi.r3(0.01*ti.cos(25/50.0))
-    # camera_pos = rotm @ camera_pos
-    # camera_dir = rotm @ camera_dir
-    light_normal = rotm @ light_normal
 
     while tracer.gui.running:
+        rotm = mi.r3(0.01*ti.cos(i/50.0))
+        camera_pos = rotm @ camera_pos
+        camera_dir = rotm @ camera_dir
+        light_normal = rotm @ light_normal
         tracer.render_image(camera_pos, camera_dir, camera_up, light_normal)
         if i % interval == 0:
             print(f"{interval / (time.time() - last_t):.2f} samples/s")
@@ -40,7 +40,7 @@ def main():
             totals.append(tracer.total_brightness())
             tracer.show()
         i += 1
-        # tracer.reset_buffer()
+        tracer.reset_buffer()
         # if i == 1000:
         #     break
     

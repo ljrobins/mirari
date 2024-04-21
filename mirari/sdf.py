@@ -2,45 +2,65 @@ import taichi as ti
 
 from .math import rv_to_dcm
 
-@ti.func
-def box(origin: ti.math.vec3, 
-        scales: ti.math.vec3, 
-        r: ti.math.vec3) -> float:
-    q = ti.abs(r - origin) - scales
-    return ti.Vector(
-        [ti.max(0, q[0]), ti.max(0, q[1]), ti.max(0, q[2])]
-    ).norm() + ti.min(q.max(), 0)
-
-@ti.func
-def torus(origin: ti.math.vec3,
-          radii: ti.math.vec2, 
-          r: ti.math.vec3,
-          rv = ti.math.vec3([0, 0, 0])) -> float:
-    rmo = r - origin
-    if rv.norm() > 0:
-        rmo = rv_to_dcm(-rv) @ rmo
-    q = ti.Vector([
-        ti.Vector([
-        rmo[0], rmo[2]
-    ]).norm() - radii[0],
-    rmo[1]
-    ])
-    return q.norm() - radii[1]
-
-
 @ti.dataclass
 class Material:
     cs: float
     a: float
 
 @ti.dataclass
-class Sphere:
+class Box:
+    # USED
     origin: ti.math.vec3
-    radius: float
+    radii: ti.math.vec3
+    rv: ti.math.vec3
     material: Material
-    r: ti.math.vec3
 
-    @ti.func
-    def sdf(self):
-        return (self.r - self.origin).norm() - self.radius
+    @ti.pyfunc
+    def sdf(self, r: ti.math.vec3) -> float:
+        rmo = r - self.origin
+        if self.rv.norm() > 0.0:
+            rmo = rv_to_dcm(-self.rv) @ rmo
+
+        q = ti.abs(rmo) - self.radii
+        return ti.Vector(
+            [ti.max(0, q[0]), ti.max(0, q[1]), ti.max(0, q[2])]
+        ).norm() + ti.min(q.max(), 0)
+
+@ti.dataclass
+class Torus:
+    # USED
+    origin: ti.math.vec3
+    radii: ti.math.vec3
+    rv: ti.math.vec3
+    material: Material
+
+    @ti.pyfunc
+    def sdf(self, r: ti.math.vec3) -> float:
+        rmo = r - self.origin
+        if self.rv.norm() > 0.0:
+            rmo = rv_to_dcm(-self.rv) @ rmo
+        q = ti.Vector([
+            ti.Vector([
+            rmo[0], rmo[2]
+        ]).norm() - self.radii[0],
+        rmo[1]
+        ])
+        return q.norm() - self.radii[1]
+    
+
+
+
+@ti.dataclass
+class Sphere:
+    # USED
+    origin: ti.math.vec3
+    radii: ti.math.vec3
+    material: Material
+
+    # UNUSED
+    rv: ti.math.vec3
+
+    @ti.pyfunc
+    def sdf(self, r):
+        return (r - self.origin).norm() - self.radii[0]
 
