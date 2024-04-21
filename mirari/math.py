@@ -1,7 +1,7 @@
 import numpy as np
 import taichi as ti
 
-@ti.func
+@ti.pyfunc
 def r1(t: float) -> ti.math.mat3:
     """Rotation about the second body axis with input in radians
 
@@ -18,7 +18,7 @@ def r1(t: float) -> ti.math.mat3:
         ]
     )
 
-@ti.func
+@ti.pyfunc
 def r2(t: float) -> ti.math.mat3:
     """Rotation about the second body axis with input in radians
 
@@ -36,7 +36,7 @@ def r2(t: float) -> ti.math.mat3:
     )
 
 
-@ti.func
+@ti.pyfunc
 def r3(t: float) -> ti.math.mat3:
     """Rotation about the third body axis with input in radians
 
@@ -53,54 +53,6 @@ def r3(t: float) -> ti.math.mat3:
         ]
     )
 
-def r1_py(t: float) -> ti.math.mat3:
-    """Rotation about the second body axis with input in radians
-
-    :param t: Angle t (short for theta) [rad]
-    :type t: float
-    :return: Rotation matrix(s) about the second body axis
-    :rtype: np.ndarray
-    """
-    return ti.Matrix(
-        [
-            [1, 0, 0],
-            [0, ti.cos(t), ti.sin(t)],
-            [0, -ti.sin(t), ti.cos(t)],
-        ]
-    )
-
-def r2_py(t: float) -> ti.math.mat3:
-    """Rotation about the second body axis with input in radians
-
-    :param t: Angle t (short for theta) [rad]
-    :type t: float
-    :return: Rotation matrix(s) about the second body axis
-    :rtype: ti.math.mat3
-    """
-    return ti.Matrix(
-        [
-            [ti.cos(t), 0, -ti.sin(t)],
-            [0, 1, 0],
-            [ti.sin(t), 0, ti.cos(t)],
-        ]
-    )
-
-
-def r3_py(t: float) -> ti.math.mat3:
-    """Rotation about the third body axis with input in radians
-
-    :param t: Angle t (short for theta) [rad]
-    :type t: float
-    :return: Rotation matrix(s) about the third body axis
-    :rtype: ti.math.mat3
-    """
-    return ti.Matrix(
-        [
-            [ti.cos(t), ti.sin(t), 0],
-            [-ti.sin(t), ti.cos(t), 0],
-            [0, 0, 1],
-        ]
-    )
 
 @ti.func
 def sph_to_cart(
@@ -125,18 +77,13 @@ def sph_to_cart(
 def random_n1_p1() -> float:
     return 2*ti.random() - 1
 
-@ti.func
-def random_normal_value() -> float:
-    theta = 2 * np.pi * ti.random()
-    rho = ti.sqrt(-2 * ti.log(ti.random()))
-    return rho * ti.cos(theta)
 
 
 @ti.func
 def random_direction() -> ti.math.vec3:
     return ti.Vector(
-        [random_normal_value(), random_normal_value(), random_normal_value()]
-    )
+        [ti.randn(), ti.randn(), ti.randn()]
+    ).normalized()
 
 
 @ti.func

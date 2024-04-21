@@ -1,9 +1,10 @@
-from typing import Callable, Tuple
+from typing import Tuple
 
 import numpy as np
 import taichi as ti
 
 from .brdf import sample_ggx_micro_normal_world, ggx_reflectance, reflect
+from .scenes import Scene
 from .math import rdot
 
 
@@ -15,7 +16,7 @@ cs = 0.95
 class RayMarchRenderer:
     def __init__(
         self,
-        scene_sdf: Callable,
+        scene: Scene,
         fov: float,
         res: Tuple[float, float],
         max_depth: int,
@@ -25,7 +26,7 @@ class RayMarchRenderer:
         gui_fps_limit: int = 1_000,
         max_march_steps: int = 100,
     ) -> None:
-        self.scene_sdf = scene_sdf
+        self.scene = scene
 
         self.fov = fov
         self.inf = divergence_dist
@@ -56,7 +57,7 @@ class RayMarchRenderer:
         j = 0
         dist_marched = 0.0
         while j < self.max_march_steps and dist_marched < self.inf:
-            new_dist = self.scene_sdf(p + dist_marched * d)
+            new_dist = self.scene.sdf(p + dist_marched * d)
             dist_marched += new_dist
             if new_dist < 1e-6:
                 break
@@ -67,11 +68,11 @@ class RayMarchRenderer:
     def sdf_normal(self, p):
         d = 1e-3
         n = ti.Vector([0.0, 0.0, 0.0])
-        sdf_center = self.scene_sdf(p)
+        sdf_center = self.scene.sdf(p)
         for i in ti.static(range(3)):
             inc = p
             inc[i] += d
-            n[i] = (1 / d) * (self.scene_sdf(inc) - sdf_center)
+            n[i] = (1 / d) * (self.scene.sdf(inc) - sdf_center)
         return n.normalized()
 
     def sum(self):

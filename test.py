@@ -20,13 +20,13 @@ def main():
     interval = 5
     totals = []
     tracer = mi.RayMarchRenderer(fov=2.0, 
-                                 scene_sdf=mi.scene_one, 
+                                 scene=mi.Scene(sdf=mi.scene_one), 
                                  res=(740, 480), 
                                  max_depth=8, 
                                  samples_per_pixel=1,
                                  show_gui=True)
 
-    rotm = mi.r3_py(0.01*ti.cos(25/50.0))
+    rotm = mi.r3(0.01*ti.cos(25/50.0))
     # camera_pos = rotm @ camera_pos
     # camera_dir = rotm @ camera_dir
     light_normal = rotm @ light_normal

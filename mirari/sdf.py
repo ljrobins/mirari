@@ -1,5 +1,4 @@
 import taichi as ti
-import numpy as np
 
 from .math import rv_to_dcm
 
@@ -28,6 +27,20 @@ def torus(origin: ti.math.vec3,
     ])
     return q.norm() - radii[1]
 
-@ti.func
-def sphere(origin: ti.math.vec3, radius: float, r: ti.math.vec3):
-    return (r - origin).norm() - radius
+
+@ti.dataclass
+class Material:
+    cs: float
+    a: float
+
+@ti.dataclass
+class Sphere:
+    origin: ti.math.vec3
+    radius: float
+    material: Material
+    r: ti.math.vec3
+
+    @ti.func
+    def sdf(self):
+        return (self.r - self.origin).norm() - self.radius
+
