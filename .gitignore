@@ -4,3 +4,4 @@ include
 share
 *.tcm
 *.cfg
+__pycache__

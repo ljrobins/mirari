@@ -5,19 +5,14 @@ import taichi as ti
 
 from .brdf import sample_ggx_micro_normal_world, ggx_reflectance, reflect
 from .scenes import Scene
-from .math import rdot
-
-
-a2 = 0.01**2
-cs = 0.95
-
+from .math import rdot, random_hemisphere_direction, random_direction
+from .camera import Camera
 
 @ti.data_oriented
 class RayMarchRenderer:
     def __init__(
         self,
         scene: Scene,
-        fov: float,
         res: Tuple[float, float],
         max_depth: int,
         divergence_dist: float = 100.0,
@@ -28,11 +23,9 @@ class RayMarchRenderer:
     ) -> None:
         self.scene = scene
 
-        self.fov = fov
         self.inf = divergence_dist
         self.res = res
         self.max_depth = max_depth
-        self.aspect_ratio = self.res[0] / self.res[1]
         self.samples_per_pixel = samples_per_pixel
         self.max_march_steps = max_march_steps
 
@@ -82,8 +75,8 @@ class RayMarchRenderer:
             raise ValueError("A pixel in the image is nan, aborting!")
         return img.sum() / self._j
 
-    def total_brightness(self):
-        return self.sum() * self.fov**2 / self.res[1] ** 2
+    def total_brightness(self, cam: Camera):
+        return self.sum() * cam.fov**2 / self.res[1] ** 2
 
     @ti.func
     def next_hit(self, pos, d):
@@ -114,72 +107,65 @@ class RayMarchRenderer:
 
     def render_image(
         self,
-        camera_pos: ti.math.vec3,
-        camera_dir: ti.math.vec3,
-        camera_up: ti.math.vec3,
         light_normal: ti.math.vec3,
+        cam: Camera,
     ):
         for _ in range(self.samples_per_pixel):
-            self.render(camera_pos, camera_dir, camera_up, light_normal)
+            self.render(light_normal, cam)
             self._j += 1
 
 
     @ti.kernel
     def render(self, 
-               camera_pos: ti.math.vec3, 
-               camera_dir: ti.math.vec3,
-               camera_up: ti.math.vec3,
-               light_normal: ti.math.vec3):
-        camera_x = ti.math.cross(camera_up, camera_dir)
-        camera_up_perp = ti.math.cross(camera_dir, camera_x)
-        camera_x = ti.math.cross(camera_up_perp, camera_dir)
-        # camera_dcm = ti.Matrix([[camera_x[0], camera_x[1], camera_x[2]], 
-        #                         [camera_up[0], camera_up[1], camera_up[2]],
-        #                         [camera_dir[0], camera_dir[1], camera_dir[2]]])
-        # d = ti.Vector(
-        #     [
-        #         (
-        #             2 * self.fov * (u + ti.random()) / self.res[1]
-        #             - self.fov * self.aspect_ratio
-        #             - 1e-5
-        #         ),
-        #         2 * self.fov * (v + ti.random()) / self.res[1] - self.fov - 1e-5,
-        #         -1.0,
-        #     ]
-        # ).normalized()
+               light_normal: ti.math.vec3,
+               cam: Camera,
+               ):
+
         for u, v in self.color_buffer:
-            d = camera_dir
-            frac_x = (v+ti.random()) / self.res[1]
-            frac_y = (u+ti.random()) / self.res[0]
-            pos = camera_pos \
-                + self.fov * (frac_x-0.5) * camera_up \
-                + self.aspect_ratio * self.fov * (frac_y-0.5) * camera_x
+            pos, d = cam.init_ray(u, v)
+            power = self.path_trace(pos, d, light_normal)
 
-            depth = 0
-            power = 1.0
-            last_surface_normal = light_normal
+            self.color_buffer[u, v] += power
 
-            while depth < self.max_depth:
-                closest, normal, closest_obj = self.next_hit(pos, d)
-                depth += 1
-                if closest == self.inf:
-                    power *= rdot(last_surface_normal, -light_normal)
+    @ti.func
+    def path_trace(self, 
+                   pos: ti.math.vec3, 
+                   dir: ti.math.vec3,
+                   light_normal: ti.math.vec3):
+        depth = 0
+        power = 1.0
+        last_surface_normal = light_normal
+
+        while depth < self.max_depth:
+            closest, normal, closest_obj = self.next_hit(pos, dir)
+            depth += 1
+            if depth == self.max_depth: # Then we hit no lights
+                power = 0
+                break
+            if closest == self.inf: # Then we have diverged
+                # power *= rdot(last_surface_normal, -light_normal)
+                power = 0
+                break
+            else:
+                if closest_obj.material.emmissive: # If we've hit a light
+                    power *= closest_obj.material.cs * rdot(-dir, normal)
                     break
-                else:
-                    last_surface_normal = normal
-                    hit_pos = pos + closest * d
+                last_surface_normal = normal
+                hit_pos = pos + closest * dir
 
-                    wo = -d
+                wo = -dir
 
+                wi = ti.math.vec3(0.0, 0.0, 0.0)
+                if ti.random() < closest_obj.material.cs: # Then we've reflected specularly
                     wm = sample_ggx_micro_normal_world(normal, closest_obj.material.a**2)
                     wi = reflect(wo, wm)
                     refl = ggx_reflectance(wi, wo, normal, wm, closest_obj.material.cs, closest_obj.material.a**2)
                     power *= refl
-
-                    d = wi
-                    pos = hit_pos + 1e-5 * d
-
-
+                else: # Then we've reflected diffusely
+                    wi = (normal + random_direction()).normalized()
+                    power *= rdot(wi, normal)
                     
-            self.color_buffer[u, v] += power if not ti.math.isnan(power) else 0
-            
+
+                dir = wi
+                pos = hit_pos + 1e-5 * dir
+        return power if not ti.math.isnan(power) else 0

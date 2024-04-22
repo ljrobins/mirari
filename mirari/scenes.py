@@ -4,7 +4,7 @@ import numpy as np
 from typing import Callable
 
 
-@ti.pyfunc
+@ti.func
 def make_nested(f):
     f = f * 40
     i = int(f)
@@ -23,11 +23,11 @@ class Scene:
         self.objects = objects
         self._n_objs = len(objects)
     
-    @ti.pyfunc
+    @ti.func
     def _sdf(self, r):
         return [obj.sdf(r) for obj in ti.static(self.objects)]
     
-    @ti.pyfunc
+    @ti.func
     def sdf(self, r):
         dists = self._sdf(r)
         min_dist = np.inf
@@ -37,6 +37,54 @@ class Scene:
                 min_dist = dists[i]
                 min_obj = self.objects[i]
         return [min_dist, min_obj]
+
+def cornell_box_scene():
+    diff_material = Material(cs=0.0, a=0.01)
+    spec_material = Material(cs=1.0, a=0.01)
+    light_material = Material(cs=15.0, emmissive=True)
+
+    floor = Box(origin=ti.Vector([0,-1,0]),
+                   radii=ti.Vector([1, 0.01, 2]),
+                   material=diff_material)
+    ceil = Box(origin=ti.Vector([0,1,0]),
+                   radii=ti.Vector([1, 0.01, 2]),
+                   material=diff_material)
+    lwall = Box(origin=ti.Vector([-1,0,0]),
+                   radii=ti.Vector([0.01, 1, 2]),
+                   material=diff_material)
+    rwall = Box(origin=ti.Vector([1,0,0]),
+                   radii=ti.Vector([0.01, 1, 2]),
+                   material=diff_material)
+    bwall = Box(origin=ti.Vector([0,0,-1]),
+                   radii=ti.Vector([1, 1, 0.01]),
+                   material=diff_material)
+    
+    light = Box(
+        origin=ti.Vector([0,0.99,0]),
+        radii=ti.Vector([0.3, 0.01, 0.3]),
+        material=light_material
+    )
+
+    box_back = Box(
+        origin=ti.Vector([0.4,-0.5,-0.5]),
+        radii=ti.Vector([0.3, 0.6, 0.3]),
+        material=diff_material,
+        rv=ti.Vector([0.0, 0.5, 0.0]),
+    )
+
+    box_front = Box(
+        origin=ti.Vector([-0.3,-0.7,0.5]),
+        radii=ti.Vector([0.3, 0.3, 0.3]),
+        material=diff_material,
+        rv=ti.Vector([0.0, -0.2, 0.0]),
+    )
+
+    s1 = Sphere(origin=ti.Vector([0.0, 0.0, 0.0]),
+                radii=ti.Vector([0.2, 0.0, 0.0]), 
+                material=spec_material
+                )
+
+    return (light,floor,ceil,lwall,rwall,bwall,box_front,box_back,s1)
 
 
 @ti.pyfunc
@@ -64,7 +112,8 @@ def scene_one(o):
 def scene_three_objs():
     box1 = Box(origin=ti.Vector([0.0, 0.0, 0.0]), 
                radii=ti.Vector([0.2, 0.3, 0.3]),
-               rv=ti.Vector([0.1, 0.2, 0.3]))
+               rv=ti.Vector([0.1, 0.2, 0.3]),
+               material=Material(cs=1.0, a=0.01))
     t1 = Torus(origin=ti.Vector([0.4, 0.4, 0.5]), 
                 radii=ti.Vector([0.2, 0.1, 0.0]), 
                 rv=ti.Vector([0.1, 0.2, 0.3]),
@@ -72,44 +121,27 @@ def scene_three_objs():
     
     sph1 = Sphere(origin=ti.Vector([0.0, 0.6, 0.0]),
                   radii=ti.Vector([0.2, 0.0, 0.0]), 
-                  material=Material(cs=1.0, a=0.2))
+                  material=Material(cs=1.0, a=0.2, emmissive=True))
     sph2 = Sphere(origin=ti.Vector([0.4, 0.1, 0.0]),
                   radii=ti.Vector([0.4, 0.0, 0.0]), 
                   material=Material(cs=1.0, a=0.001))
     return (t1, sph1, sph2, box1)
 
-# @ti.data_oriented
-# class Scene:
-#     sphere1 = Sphere(origin=[0.0, 0.7, 0.0], radius=0.2, material=Material(cs=1.0, n=0.2))
-#     sphere2 = Sphere(origin=[0.0, 0.2, 0.0], radius=0.2, material=Material(cs=1.0, n=0.2))
-#     _n_objs = 2
-    
-#     def sdf(self, r):
-#         self.sphere1.r = r
-#         self.sphere2.r = r
-#         return ti.min(*[self.sphere1.sdf(), self.sphere2.sdf()])
+@ti.pyfunc
+def box_scene():
+    b1 = Box(origin=ti.Vector([0.3, 0.0, 0.0]), 
+               radii=ti.Vector([0.01, 0.3, 0.3]),
+               material=Material(cs=1.0, a=0.01))
 
-    # @ti.func
-    # def sdf(self, r):
-    #     min_ind = -1
-    #     min_dist = np.inf
-    #     i = 0
-    #     for k,obj in ti.static(self.objects):
-    #         obj.sdf(r)
-    #     while i < self._n_objs:
-    #         dist_i = self.objects[i].sdf(r)
-    #         if dist_i < min_dist:
-    #             min_dist = dist_i
-    #             min_ind = i
-    #         i += 1
-    #     return min_dist
+    b2 = Box(origin=ti.Vector([-0.3, 0.0, 0.0]), 
+               radii=ti.Vector([0.01, 0.3, 0.3]),
+               material=Material(cs=1.0, a=0.01, emmissive=True))
 
-@ti.func
-def scene_devel(r):
-    box1 = box(origin=ti.Vector([0.0, 0.0, 0.0]), 
-               scales=0.3*ti.Vector([1.0, 1.0, 1.0]), r=r)
-    box2 = box(origin=ti.Vector([-0.25, 0.0, 0.0]), 
-               scales=ti.Vector([0.5, 0.01, 0.2]), r=r)
-    # box3 = box(origin=ti.Vector([0.25, 0.0, 0.0]), 
-    #            scales=ti.Vector([0.5, 0.01, 0.2]), r=r)
-    return ti.min(box1)
+    b3 = Box(origin=ti.Vector([0.0, 0.0, 0.0]), 
+               radii=ti.Vector([0.3, 0.01, 0.3]),
+               material=Material(cs=1.0, a=0.01))
+
+    s1 = Sphere(origin=ti.Vector([0.0, 0.6, 0.0]),
+                  radii=ti.Vector([0.2, 0.0, 0.0]), 
+                  material=Material(cs=1.0, a=0.2, emmissive=True))
+    return (b1, b2, b3, s1)

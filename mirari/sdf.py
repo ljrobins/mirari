@@ -1,11 +1,7 @@
 import taichi as ti
 
 from .math import rv_to_dcm
-
-@ti.dataclass
-class Material:
-    cs: float
-    a: float
+from .material import Material
 
 @ti.dataclass
 class Box:

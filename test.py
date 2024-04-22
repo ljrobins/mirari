@@ -11,33 +11,40 @@ import matplotlib.pyplot as plt
 
 def main():
     t_start = time.time()
-    camera_pos = 10*ti.Vector([0, 1, 3])
+    camera_pos = ti.Vector([0, 1, 3])
     camera_dir = -camera_pos.normalized()
     camera_up = ti.Vector([0.0, 1.0, 0.0]).normalized()
     light_normal = ti.Vector([0.0, -1.0, 0.0]).normalized()
     last_t = 0
     i = 0
-    interval = 10
+    interval = 1
     totals = []
-    tracer = mi.RayMarchRenderer(fov=2.0, 
-                                 scene=mi.Scene(objects=mi.scene_three_objs()), 
-                                 res=(400, 400), 
+    tracer = mi.RayMarchRenderer(scene=mi.Scene(objects=mi.scene_three_objs()), 
+                                 res=(400,400),
                                  max_depth=4, 
-                                 samples_per_pixel=1,
+                                 samples_per_pixel=10,
                                  show_gui=True)
 
 
     while tracer.gui.running:
-        rotm = mi.r3(0.01*ti.cos(i/50.0))
+        rotm = mi.r2(0.01)
         camera_pos = rotm @ camera_pos
-        camera_dir = rotm @ camera_dir
-        light_normal = rotm @ light_normal
-        tracer.render_image(camera_pos, camera_dir, camera_up, light_normal)
+        camera_dir = -camera_pos.normalized()
+        cam = mi.Camera(pos=camera_pos, dir=camera_dir, up=camera_up, 
+                                    fov=0.3, 
+                                    res=ti.Vector(tracer.res),
+                                    is_perspective=True)
+        cam2 = mi.Camera(pos=camera_pos, dir=camera_dir, up=camera_up, 
+                                    fov=2.0, 
+                                    res=ti.Vector(tracer.res),
+                                    is_perspective=False)
+        # light_normal = rotm @ light_normal
+        tracer.render_image(light_normal, cam)
         if i % interval == 0:
             print(f"{interval / (time.time() - last_t):.2f} samples/s")
             last_t = time.time()
             
-            totals.append(tracer.total_brightness())
+            totals.append(tracer.total_brightness(cam))
             tracer.show()
         i += 1
         tracer.reset_buffer()
@@ -62,7 +69,7 @@ def main():
     plt.ylabel("Percent error")
     plt.grid()
     plt.tight_layout()
-    plt.show()
+    # plt.show()
     # print(totals[-1])
 
 
