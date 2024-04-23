@@ -11,7 +11,7 @@ class Box:
     rv: ti.math.vec3
     material: Material
 
-    @ti.pyfunc
+    @ti.func
     def sdf(self, r: ti.math.vec3) -> float:
         rmo = r - self.origin
         if self.rv.norm() > 0.0:
@@ -30,7 +30,7 @@ class Torus:
     rv: ti.math.vec3
     material: Material
 
-    @ti.pyfunc
+    @ti.func
     def sdf(self, r: ti.math.vec3) -> float:
         rmo = r - self.origin
         if self.rv.norm() > 0.0:
@@ -56,7 +56,7 @@ class Sphere:
     # UNUSED
     rv: ti.math.vec3
 
-    @ti.pyfunc
+    @ti.func
     def sdf(self, r):
         return (r - self.origin).norm() - self.radii[0]
 

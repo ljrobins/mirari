@@ -5,7 +5,7 @@ import taichi as ti
 
 from .brdf import sample_ggx_micro_normal_world, ggx_reflectance, reflect
 from .scenes import Scene
-from .math import rdot, random_hemisphere_direction, random_direction
+from .math import rdot, random_direction
 from .camera import Camera
 
 @ti.data_oriented

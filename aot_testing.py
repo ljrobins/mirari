@@ -26,44 +26,29 @@ def main():
                                  camera=cam,
                                  max_depth=5,
                                  samples_per_pixel=1,
-                                #  show_gui=True,
-                                 divergence_dist=1e2)
+                                 show_gui=True)
+    
+
+    m = ti.aot.Module(ti.metal)
+    m.add_kernel(tracer.render)
+
+    m.save('test.tcm')
+    endd
 
     totals = []
-    while True:
+    while tracer.gui.running:
         tracer.render_image(light_normal)
         # cam.pos = cam.pos + 0.01
         if i % interval == 0:
             print(f"{interval / (time.time() - last_t):.2f} samples/s")
             last_t = time.time()
-            # tracer.show()
+            tracer.show()
             totals.append(tracer.total_brightness())
         i += 1
         # tracer.reset_buffer()
-        if i == 100:
-            break
-    
-    ti.profiler.print_scoped_profiler_info()
+        # if i == 1000:
+        #     break
 
-    arr = np.flipud(tracer.color_buffer.to_numpy().swapaxes(0,1))
-    plt.imsave("test.png", arr=np.tile(np.clip(arr, 0, 255)/255, (1,1,3)))
-
-    # totals = np.array(totals)
-    # plt.figure(figsize=(8,4))
-    # plt.subplot(1,2,1)
-    # percent_error = (totals - totals[-1]) / totals[-1] * 100
-    # plt.plot(totals)
-    # plt.title("Image sum over time")
-    # plt.xlabel("Iteration")
-    # plt.ylabel("Image sum")
-    # plt.grid()
-    # plt.subplot(1,2,2)
-    # plt.plot(percent_error)
-    # plt.xlabel("Iteration")
-    # plt.ylabel("Percent error")
-    # plt.grid()
-    # plt.tight_layout()
-    # plt.show()
 
 if __name__ == "__main__":
     main()

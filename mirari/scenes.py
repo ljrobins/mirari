@@ -86,6 +86,23 @@ def cornell_box_scene():
 
     return (light,floor,ceil,lwall,rwall,bwall,box_front,box_back,s1)
 
+def simple_scene():
+    spec_material = Material(cs=1.0, a=0.01)
+    light_material = Material(cs=25.0, emmissive=True)
+    
+    light = Box(
+        origin=ti.Vector([0,0.99,0]),
+        radii=ti.Vector([0.3, 0.01, 0.3]),
+        material=light_material
+    )
+
+    s1 = Sphere(origin=ti.Vector([0.0, 0.0, 0.0]),
+                radii=ti.Vector([0.2, 0.0, 0.0]), 
+                material=spec_material
+                )
+
+    return (light,s1)
+
 
 @ti.pyfunc
 def scene_one(o):
