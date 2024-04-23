@@ -20,8 +20,14 @@ def main():
     last_t = 0
     i = 0
     interval = 1
+    cam = mi.Camera(pos=camera_pos, 
+                dir=camera_dir, 
+                up=camera_up, 
+                fov=0.4, 
+                res=(400,400),
+                is_perspective=True)
     tracer = mi.RayMarchRenderer(scene=mi.Scene(objects=mi.cornell_box_scene()), 
-                                 res=(400, 400), 
+                                 camera=cam,
                                  max_depth=5,
                                  samples_per_pixel=1,
                                  show_gui=True,
@@ -29,18 +35,13 @@ def main():
 
     totals = []
     while tracer.gui.running:
-        cam = mi.Camera(pos=camera_pos, 
-                        dir=camera_dir, 
-                        up=camera_up, 
-                        fov=0.4, 
-                        res=tracer.res,
-                        is_perspective=True)
-        tracer.render_image(light_normal, cam)
+        tracer.render_image(light_normal)
+        # cam.pos = cam.pos + 0.01
         if i % interval == 0:
             print(f"{interval / (time.time() - last_t):.2f} samples/s")
             last_t = time.time()
             tracer.show()
-            totals.append(tracer.total_brightness(cam))
+            totals.append(tracer.total_brightness())
         i += 1
         # tracer.reset_buffer()
         # if i == 1000:

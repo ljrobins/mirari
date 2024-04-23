@@ -13,7 +13,7 @@ class RayMarchRenderer:
     def __init__(
         self,
         scene: Scene,
-        res: Tuple[float, float],
+        camera: Camera,
         max_depth: int,
         divergence_dist: float = 100.0,
         samples_per_pixel: int = 1,
@@ -22,16 +22,17 @@ class RayMarchRenderer:
         max_march_steps: int = 100,
     ) -> None:
         self.scene = scene
+        self.camera = camera
 
         self.inf = divergence_dist
-        self.res = res
         self.max_depth = max_depth
         self.samples_per_pixel = samples_per_pixel
         self.max_march_steps = max_march_steps
+        self.res = tuple([int(x) for x in self.camera.res])
 
         self.color_buffer = ti.Vector.field(1, dtype=ti.f32, shape=self.res)
         if show_gui:
-            self.gui = ti.GUI("Mirari Ray Marcher", res)
+            self.gui = ti.GUI("Mirari Ray Marcher", self.res)
             self.gui.fps_limit = gui_fps_limit
         
         self._j = 0
@@ -75,8 +76,8 @@ class RayMarchRenderer:
             raise ValueError("A pixel in the image is nan, aborting!")
         return img.sum() / self._j
 
-    def total_brightness(self, cam: Camera):
-        return self.sum() * cam.fov**2 / self.res[1] ** 2
+    def total_brightness(self):
+        return self.sum() * self.camera.fov**2 / self.res[1] ** 2
 
     @ti.func
     def next_hit(self, pos, d):
@@ -108,21 +109,19 @@ class RayMarchRenderer:
     def render_image(
         self,
         light_normal: ti.math.vec3,
-        cam: Camera,
     ):
         for _ in range(self.samples_per_pixel):
-            self.render(light_normal, cam)
+            self.render(light_normal)
             self._j += 1
 
 
     @ti.kernel
     def render(self, 
                light_normal: ti.math.vec3,
-               cam: Camera,
                ):
 
         for u, v in self.color_buffer:
-            pos, d = cam.init_ray(u, v)
+            pos, d = self.camera.init_ray(u, v)
             power = self.path_trace(pos, d, light_normal)
 
             self.color_buffer[u, v] += power

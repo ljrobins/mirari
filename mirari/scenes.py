@@ -41,7 +41,7 @@ class Scene:
 def cornell_box_scene():
     diff_material = Material(cs=0.0, a=0.01)
     spec_material = Material(cs=1.0, a=0.01)
-    light_material = Material(cs=15.0, emmissive=True)
+    light_material = Material(cs=25.0, emmissive=True)
 
     floor = Box(origin=ti.Vector([0,-1,0]),
                    radii=ti.Vector([1, 0.01, 2]),

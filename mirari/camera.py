@@ -1,15 +1,68 @@
 
 
 import taichi as ti
+import numpy as np
 
-@ti.dataclass
+@ti.data_oriented
 class Camera:
-    pos: ti.math.vec3
-    dir: ti.math.vec3
-    up: ti.math.vec3
-    res: ti.math.vec2
-    fov: float
-    is_perspective: bool
+
+    def __init__(self, pos, dir, up, res, fov, is_perspective: bool):
+        self.pos_field = ti.Vector.field(3, dtype=ti.f32, shape=(1,))
+        self.dir_field = ti.Vector.field(3, dtype=ti.f32, shape=(1,))
+        self.up_field = ti.Vector.field(3, dtype=ti.f32, shape=(1,))
+        self.res = res
+        self.fov = fov
+        self.is_perspective = is_perspective
+
+        for i,(pi,di,ui) in enumerate(zip(pos, dir, up)):
+            self.pos_field[0][i] = pi
+            self.dir_field[0][i] = di
+            self.up_field[0][i] = ui
+        
+        # self.pos = ti.Vector([self.pos_field[0][0], self.pos_field[0][1], self.pos_field[0][2]])
+        # self.dir = ti.Vector([self.dir_field[0][0], self.dir_field[0][1], self.dir_field[0][2]])
+        # self.up = ti.Vector([self.up_field[0][0], self.up_field[0][1], self.up_field[0][2]])
+
+    
+    @ti.func
+    def _pos(self):
+        return ti.Vector([self.pos_field[0][0], self.pos_field[0][1], self.pos_field[0][2]])
+    
+    @ti.func
+    def _dir(self):
+        return ti.Vector([self.dir_field[0][0], self.dir_field[0][1], self.dir_field[0][2]])
+    
+    @ti.func
+    def _up(self):
+        return ti.Vector([self.up_field[0][0], self.up_field[0][1], self.up_field[0][2]])
+    
+    @property
+    def pos(self):
+        return ti.Vector([self.pos_field[0][0], self.pos_field[0][1], self.pos_field[0][2]])
+
+    @property
+    def dir(self):
+        return ti.Vector([self.dir_field[0][0], self.dir_field[0][1], self.dir_field[0][2]])
+
+    @property
+    def up(self):
+        return ti.Vector([self.up_field[0][0], self.up_field[0][1], self.up_field[0][2]])
+    
+    @pos.setter
+    def pos(self, v: np.ndarray):
+        for i,vi in enumerate(v):
+            self.pos_field[0][i] = vi
+
+    @dir.setter
+    def pos(self, v: np.ndarray):
+        for i,vi in enumerate(v):
+            self.dir_field[0][i] = vi
+
+    @up.setter
+    def pos(self, v: np.ndarray):
+        for i,vi in enumerate(v):
+            self.up_field[0][i] = vi
+
 
     @ti.func
     def aspect_ratio(self):
@@ -17,10 +70,12 @@ class Camera:
     
     @ti.func
     def orthonormalize(self):
-        x = ti.math.cross(self.up, self.dir)
-        up_perp = ti.math.cross(self.dir, x)
-        x = ti.math.cross(up_perp, self.dir)
-        return x, up_perp, self.dir
+        up = self._up()
+        dir = self._dir()
+        x = ti.math.cross(up, dir)
+        up_perp = ti.math.cross(dir, x)
+        x = ti.math.cross(up_perp, dir)
+        return x, up_perp, dir
     
     @ti.func
     def init_ray(self, u: int, v: int):
@@ -32,10 +87,10 @@ class Camera:
     @ti.func
     def init_ray_orthographic(self, u: int, v: int):
         camera_x, camera_up_perp, _ = self.orthonormalize()
-        d = self.dir
+        d = self._dir()
         frac_x = (v+ti.random()) / self.res[1]
         frac_y = (u+ti.random()) / self.res[0]
-        pos = self.pos \
+        pos = self._pos() \
             + self.fov * (frac_x-0.5) * camera_up_perp \
             + self.aspect_ratio() * self.fov * (frac_y-0.5) * camera_x
         return pos, d
@@ -43,10 +98,11 @@ class Camera:
     @ti.func
     def init_ray_perspective(self, u: int, v: int):
         camera_x, camera_up_perp, _ = self.orthonormalize()
+        dir = self._dir()
         camera_dcm = ti.Matrix([[camera_x[0], camera_x[1], camera_x[2]], 
                                 [camera_up_perp[0], camera_up_perp[1], camera_up_perp[2]],
-                                [self.dir[0], self.dir[1], self.dir[2]]])
-        pos = self.pos
+                                [dir[0], dir[1], dir[2]]])
+        pos = self._pos()
         d = camera_dcm.transpose() @ ti.Vector(
             [
                 (
