@@ -22,86 +22,102 @@ class Scene:
     def __init__(self, objects: Callable):
         self.objects = objects
         self._n_objs = len(objects)
-    
+
     @ti.func
     def _sdf(self, r):
+        ti.loop_config(serialize=False)
         return [obj.sdf(r) for obj in ti.static(self.objects)]
-    
+
     @ti.func
     def sdf(self, r):
         dists = self._sdf(r)
         min_dist = np.inf
         min_obj = self.objects[0]
+        ti.loop_config(serialize=False)
         for i in ti.static(range(self._n_objs)):
             if dists[i] < min_dist:
                 min_dist = dists[i]
                 min_obj = self.objects[i]
         return [min_dist, min_obj]
 
+
 def cornell_box_scene():
     diff_material = Material(cs=0.0, a=0.01)
     spec_material = Material(cs=1.0, a=0.01)
     light_material = Material(cs=25.0, emmissive=True)
 
-    floor = Box(origin=ti.Vector([0,-1,0]),
-                   radii=ti.Vector([1, 0.01, 2]),
-                   material=diff_material)
-    ceil = Box(origin=ti.Vector([0,1,0]),
-                   radii=ti.Vector([1, 0.01, 2]),
-                   material=diff_material)
-    lwall = Box(origin=ti.Vector([-1,0,0]),
-                   radii=ti.Vector([0.01, 1, 2]),
-                   material=diff_material)
-    rwall = Box(origin=ti.Vector([1,0,0]),
-                   radii=ti.Vector([0.01, 1, 2]),
-                   material=diff_material)
-    bwall = Box(origin=ti.Vector([0,0,-1]),
-                   radii=ti.Vector([1, 1, 0.01]),
-                   material=diff_material)
-    
+    floor = Box(
+        origin=ti.Vector([0, -1, 0]),
+        radii=ti.Vector([1, 0.01, 2]),
+        material=diff_material,
+    )
+    ceil = Box(
+        origin=ti.Vector([0, 1, 0]),
+        radii=ti.Vector([1, 0.01, 2]),
+        material=diff_material,
+    )
+    lwall = Box(
+        origin=ti.Vector([-1, 0, 0]),
+        radii=ti.Vector([0.01, 1, 2]),
+        material=diff_material,
+    )
+    rwall = Box(
+        origin=ti.Vector([1, 0, 0]),
+        radii=ti.Vector([0.01, 1, 2]),
+        material=diff_material,
+    )
+    bwall = Box(
+        origin=ti.Vector([0, 0, -1]),
+        radii=ti.Vector([1, 1, 0.01]),
+        material=diff_material,
+    )
+
     light = Box(
-        origin=ti.Vector([0,0.99,0]),
+        origin=ti.Vector([0, 0.99, 0]),
         radii=ti.Vector([0.3, 0.01, 0.3]),
-        material=light_material
+        material=light_material,
     )
 
     box_back = Box(
-        origin=ti.Vector([0.4,-0.5,-0.5]),
+        origin=ti.Vector([0.4, -0.5, -0.5]),
         radii=ti.Vector([0.3, 0.6, 0.3]),
         material=diff_material,
         rv=ti.Vector([0.0, 0.5, 0.0]),
     )
 
     box_front = Box(
-        origin=ti.Vector([-0.3,-0.7,0.5]),
+        origin=ti.Vector([-0.3, -0.7, 0.5]),
         radii=ti.Vector([0.3, 0.3, 0.3]),
         material=diff_material,
         rv=ti.Vector([0.0, -0.2, 0.0]),
     )
 
-    s1 = Sphere(origin=ti.Vector([0.0, 0.0, 0.0]),
-                radii=ti.Vector([0.2, 0.0, 0.0]), 
-                material=spec_material
-                )
+    s1 = Sphere(
+        origin=ti.Vector([0.0, 0.0, 0.0]),
+        radii=ti.Vector([0.2, 0.0, 0.0]),
+        material=spec_material,
+    )
 
-    return (light,floor,ceil,lwall,rwall,bwall,box_front,box_back,s1)
+    return (light, floor, ceil, lwall, rwall, bwall, box_front, box_back, s1)
+
 
 def simple_scene():
     spec_material = Material(cs=1.0, a=0.01)
     light_material = Material(cs=25.0, emmissive=True)
-    
+
     light = Box(
-        origin=ti.Vector([0,0.99,0]),
+        origin=ti.Vector([0, 0.99, 0]),
         radii=ti.Vector([0.3, 0.01, 0.3]),
-        material=light_material
+        material=light_material,
     )
 
-    s1 = Sphere(origin=ti.Vector([0.0, 0.0, 0.0]),
-                radii=ti.Vector([0.2, 0.0, 0.0]), 
-                material=spec_material
-                )
+    s1 = Sphere(
+        origin=ti.Vector([0.0, 0.0, 0.0]),
+        radii=ti.Vector([0.2, 0.0, 0.0]),
+        material=spec_material,
+    )
 
-    return (light,s1)
+    return (light, s1)
 
 
 @ti.pyfunc
@@ -127,38 +143,55 @@ def scene_one(o):
 
 @ti.pyfunc
 def scene_three_objs():
-    box1 = Box(origin=ti.Vector([0.0, 0.0, 0.0]), 
-               radii=ti.Vector([0.2, 0.3, 0.3]),
-               rv=ti.Vector([0.1, 0.2, 0.3]),
-               material=Material(cs=1.0, a=0.01))
-    t1 = Torus(origin=ti.Vector([0.4, 0.4, 0.5]), 
-                radii=ti.Vector([0.2, 0.1, 0.0]), 
-                rv=ti.Vector([0.1, 0.2, 0.3]),
-                material=Material(cs=1.0, a=0.2))
-    
-    sph1 = Sphere(origin=ti.Vector([0.0, 0.6, 0.0]),
-                  radii=ti.Vector([0.2, 0.0, 0.0]), 
-                  material=Material(cs=1.0, a=0.2, emmissive=True))
-    sph2 = Sphere(origin=ti.Vector([0.4, 0.1, 0.0]),
-                  radii=ti.Vector([0.4, 0.0, 0.0]), 
-                  material=Material(cs=1.0, a=0.001))
+    box1 = Box(
+        origin=ti.Vector([0.0, 0.0, 0.0]),
+        radii=ti.Vector([0.2, 0.3, 0.3]),
+        rv=ti.Vector([0.1, 0.2, 0.3]),
+        material=Material(cs=1.0, a=0.01),
+    )
+    t1 = Torus(
+        origin=ti.Vector([0.4, 0.4, 0.5]),
+        radii=ti.Vector([0.2, 0.1, 0.0]),
+        rv=ti.Vector([0.1, 0.2, 0.3]),
+        material=Material(cs=1.0, a=0.2),
+    )
+
+    sph1 = Sphere(
+        origin=ti.Vector([0.0, 0.6, 0.0]),
+        radii=ti.Vector([0.2, 0.0, 0.0]),
+        material=Material(cs=1.0, a=0.2, emmissive=True),
+    )
+    sph2 = Sphere(
+        origin=ti.Vector([0.4, 0.1, 0.0]),
+        radii=ti.Vector([0.4, 0.0, 0.0]),
+        material=Material(cs=1.0, a=0.001),
+    )
     return (t1, sph1, sph2, box1)
+
 
 @ti.pyfunc
 def box_scene():
-    b1 = Box(origin=ti.Vector([0.3, 0.0, 0.0]), 
-               radii=ti.Vector([0.01, 0.3, 0.3]),
-               material=Material(cs=1.0, a=0.01))
+    b1 = Box(
+        origin=ti.Vector([0.3, 0.0, 0.0]),
+        radii=ti.Vector([0.01, 0.3, 0.3]),
+        material=Material(cs=1.0, a=0.01),
+    )
 
-    b2 = Box(origin=ti.Vector([-0.3, 0.0, 0.0]), 
-               radii=ti.Vector([0.01, 0.3, 0.3]),
-               material=Material(cs=1.0, a=0.01, emmissive=True))
+    b2 = Box(
+        origin=ti.Vector([-0.3, 0.0, 0.0]),
+        radii=ti.Vector([0.01, 0.3, 0.3]),
+        material=Material(cs=1.0, a=0.01, emmissive=True),
+    )
 
-    b3 = Box(origin=ti.Vector([0.0, 0.0, 0.0]), 
-               radii=ti.Vector([0.3, 0.01, 0.3]),
-               material=Material(cs=1.0, a=0.01))
+    b3 = Box(
+        origin=ti.Vector([0.0, 0.0, 0.0]),
+        radii=ti.Vector([0.3, 0.01, 0.3]),
+        material=Material(cs=1.0, a=0.01),
+    )
 
-    s1 = Sphere(origin=ti.Vector([0.0, 0.6, 0.0]),
-                  radii=ti.Vector([0.2, 0.0, 0.0]), 
-                  material=Material(cs=1.0, a=0.2, emmissive=True))
+    s1 = Sphere(
+        origin=ti.Vector([0.0, 0.6, 0.0]),
+        radii=ti.Vector([0.2, 0.0, 0.0]),
+        material=Material(cs=1.0, a=0.2, emmissive=True),
+    )
     return (b1, b2, b3, s1)

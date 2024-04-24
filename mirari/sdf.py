@@ -3,6 +3,7 @@ import taichi as ti
 from .math import rv_to_dcm
 from .material import Material
 
+
 @ti.dataclass
 class Box:
     # USED
@@ -22,6 +23,7 @@ class Box:
             [ti.max(0, q[0]), ti.max(0, q[1]), ti.max(0, q[2])]
         ).norm() + ti.min(q.max(), 0)
 
+
 @ti.dataclass
 class Torus:
     # USED
@@ -35,15 +37,8 @@ class Torus:
         rmo = r - self.origin
         if self.rv.norm() > 0.0:
             rmo = rv_to_dcm(-self.rv) @ rmo
-        q = ti.Vector([
-            ti.Vector([
-            rmo[0], rmo[2]
-        ]).norm() - self.radii[0],
-        rmo[1]
-        ])
+        q = ti.Vector([ti.Vector([rmo[0], rmo[2]]).norm() - self.radii[0], rmo[1]])
         return q.norm() - self.radii[1]
-    
-
 
 
 @ti.dataclass
@@ -59,4 +54,3 @@ class Sphere:
     @ti.func
     def sdf(self, r):
         return (r - self.origin).norm() - self.radii[0]
-

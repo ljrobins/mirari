@@ -1,7 +1,8 @@
 import numpy as np
 import taichi as ti
 
-@ti.pyfunc
+
+@ti.func
 def r1(t: float) -> ti.math.mat3:
     """Rotation about the second body axis with input in radians
 
@@ -10,15 +11,10 @@ def r1(t: float) -> ti.math.mat3:
     :return: Rotation matrix(s) about the second body axis
     :rtype: np.ndarray
     """
-    return ti.Matrix(
-        [
-            [1, 0, 0],
-            [0, ti.cos(t), ti.sin(t)],
-            [0, -ti.sin(t), ti.cos(t)],
-        ]
-    )
+    return ti.math.mat3(1, 0, 0, 0, ti.cos(t), ti.sin(t), 0, -ti.sin(t), ti.cos(t))
 
-@ti.pyfunc
+
+@ti.func
 def r2(t: float) -> ti.math.mat3:
     """Rotation about the second body axis with input in radians
 
@@ -27,16 +23,10 @@ def r2(t: float) -> ti.math.mat3:
     :return: Rotation matrix(s) about the second body axis
     :rtype: ti.math.mat3
     """
-    return ti.Matrix(
-        [
-            [ti.cos(t), 0, -ti.sin(t)],
-            [0, 1, 0],
-            [ti.sin(t), 0, ti.cos(t)],
-        ]
-    )
+    return ti.math.mat3(ti.cos(t), 0, -ti.sin(t), 0, 1, 0, ti.sin(t), 0, ti.cos(t))
 
 
-@ti.pyfunc
+@ti.func
 def r3(t: float) -> ti.math.mat3:
     """Rotation about the third body axis with input in radians
 
@@ -45,19 +35,11 @@ def r3(t: float) -> ti.math.mat3:
     :return: Rotation matrix(s) about the third body axis
     :rtype: ti.math.mat3
     """
-    return ti.Matrix(
-        [
-            [ti.cos(t), ti.sin(t), 0],
-            [-ti.sin(t), ti.cos(t), 0],
-            [0, 0, 1],
-        ]
-    )
+    return ti.math.mat3(ti.cos(t), ti.sin(t), 0, -ti.sin(t), ti.cos(t), 0, 0, 0, 1)
 
 
 @ti.func
-def sph_to_cart(
-    az: float, el: float
-) -> ti.math.vec3:
+def sph_to_cart(az: float, el: float) -> ti.math.vec3:
     """Converts from spherical ``(azimuth, elevation, range)`` to unit Cartesian ``(x, y, z)``
 
     :param az: Azimuth [rad]
@@ -71,19 +53,20 @@ def sph_to_cart(
     x = rcos_theta * ti.cos(az)
     y = rcos_theta * ti.sin(az)
     z = ti.sin(el)
-    return ti.Vector([x, y, z])
+    return ti.math.vec3(x, y, z)
+
 
 @ti.func
 def random_n1_p1() -> float:
-    return 2*ti.random() - 1
-
+    return 2 * ti.random() - 1
 
 
 @ti.func
 def random_direction() -> ti.math.vec3:
-    return ti.Vector(
-        [ti.randn(), ti.randn(), ti.randn()]
-    ).normalized()
+    z = 2.0 * ti.random() - 1.0
+    a = ti.random() * 2.0 * np.pi
+    xy = ti.math.sqrt(1.0 - z * z) * ti.math.vec2(ti.math.sin(a), ti.math.cos(a))
+    return ti.math.vec3(xy, z)
 
 
 @ti.func
@@ -103,10 +86,12 @@ def random_hemisphere_direction(n) -> ti.math.vec3:
 def lerp(v1: float, v2: float, t: float) -> ti.math.vec3:
     return (t * v2 + (1 - t) * v1).normalized()
 
+
 @ti.func
 def slerp(n1: ti.math.vec3, n2: ti.math.vec3, t: float) -> ti.math.vec3:
     om = ti.acos(ti.math.dot(n1, n2))
-    return (ti.sin((1-t)*om)*n1 + ti.sin(t*om)*n2)/ti.sin(om)
+    return (ti.sin((1 - t) * om) * n1 + ti.sin(t * om) * n2) / ti.sin(om)
+
 
 @ti.func
 def rv_to_dcm(rv) -> ti.math.mat3:
@@ -118,11 +103,17 @@ def rv_to_dcm(rv) -> ti.math.mat3:
     n2 = rv_hat[1]
     n3 = rv_hat[2]
 
-    return ti.Matrix([
-        [c + n1**2*(1-c), n1*n2*(1-c) + n3*s, n1*n3*(1-c) - n2*s],
-        [n2*n1*(1-c) - n3*s, c + n2**2*(1-c), n2*n3*(1-c) + n1*s],
-        [n3*n1*(1-c) + n2*s, n3*n2*(1-c) - n1*s, c + n3**2*(1-c)]
-        ])
+    return ti.math.mat3(
+        c + n1**2 * (1 - c),
+        n1 * n2 * (1 - c) + n3 * s,
+        n1 * n3 * (1 - c) - n2 * s,
+        n2 * n1 * (1 - c) - n3 * s,
+        c + n2**2 * (1 - c),
+        n2 * n3 * (1 - c) + n1 * s,
+        n3 * n1 * (1 - c) + n2 * s,
+        n3 * n2 * (1 - c) - n1 * s,
+        c + n3**2 * (1 - c),
+    )
 
 
 @ti.func
@@ -131,7 +122,7 @@ def rdot(v1: ti.math.vec3, v2: ti.math.vec3) -> float:
     if dp < 0:
         dp = 0.0
     return dp
-    
+
 
 @ti.func
 def reflect(from_dir: ti.math.vec3, n: ti.math.vec3) -> ti.math.vec3:

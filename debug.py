@@ -19,19 +19,22 @@ def main():
     cam = mi.Camera(pos=camera_pos, 
                 dir=camera_dir, 
                 up=camera_up, 
-                fov=0.4, 
+                fov=2.0, 
                 res=(499,500),
-                is_perspective=True)
+                is_perspective=False)
+    
     
     tracer = mi.RayMarchRenderer(scene=mi.Scene(objects=mi.cornell_box_scene()), 
                                  camera=cam,
                                  max_bounces=4,
-                                 samples_per_pixel=1,
+                                 samples_per_pixel=4,
                                  show_gui=True,
                                  divergence_dist=1e2)
 
     totals = []
     while True:
+        tracer.camera.pos = tracer.camera.pos + 0.1
+        print(tracer.camera.pos)
         last_t = time.time()
         tracer.render(light_normal)
         totals.append(tracer.total_brightness())
@@ -49,22 +52,6 @@ def main():
     arr = np.flipud(tracer.color_buffer.to_numpy().swapaxes(0,1))
     plt.imsave("test.png", arr=np.tile(np.clip(arr, 0, 255)/255, (1,1,3)))
 
-    # totals = np.array(totals)
-    # plt.figure(figsize=(8,4))
-    # plt.subplot(1,2,1)
-    # percent_error = (totals - totals[-1]) / totals[-1] * 100
-    # plt.plot(totals)
-    # plt.title("Image sum over time")
-    # plt.xlabel("Iteration")
-    # plt.ylabel("Image sum")
-    # plt.grid()
-    # plt.subplot(1,2,2)
-    # plt.plot(percent_error)
-    # plt.xlabel("Iteration")
-    # plt.ylabel("Percent error")
-    # plt.grid()
-    # plt.tight_layout()
-    # plt.show()
 
 if __name__ == "__main__":
     main()
